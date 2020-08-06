@@ -18,7 +18,7 @@ def convert(input_):
     if isinstance(input_, PIL.Image.Image):
         return input_
     else:
-       print('Input type shd be \"path(str)\" or \"PIL.Image.Image\" or \"numpy.ndarray\".')
+       print('Input type shd be \"path(str)\" or \"PIL.Image.Image\".')
 
 def cal_face_tensor(cnn, input_, prob_threshold=0.98):
     input_ = convert(input_)
@@ -91,7 +91,7 @@ class AI_Model():
             rnn = self.rnn1
             dist = self.compare_(cnn1, cnn2, rnn, input_1, input_2)
             dist = dist.mean(dim=0)
-            ans_index = dist.argmin().item()
+            ans_ind = dist.argmin().item()
 
         elif type_ == "S002":
             cnn1 = self.cnn
@@ -99,27 +99,27 @@ class AI_Model():
             rnn = self.rnn1
             dist = self.compare_(cnn1, cnn2, rnn, input_1, input_2)
             dist = dist.argmin(dim=0)
-            ans_index = dist.mode().values.item()
+            ans_ind = dist.mode().values.item()
 
         elif type_ == "S003":
             cnn1 = self.cnn0
             cnn2 = self.cnn0
             rnn = self.rnn1
             dist = self.compare_(cnn1, cnn2, rnn, input_1, input_2)
-            ans_index = dist.argmin().item()
+            ans_ind = dist.argmin().item()
         
         elif type_ == "S004":
             cnn = self.cnn0
             rnn = self.rnn1
             dist = self.detect_gender(cnn, rnn, input_1)
-            ans_index = 0
+            ans_ind = 0
 
         elif type_ == "M001":
             cnn1 = self.cnn
             cnn2 = self.cnn0
             rnn = self.rnn1
             dist = self.compare_(cnn1, cnn2, rnn, input_1, input_2)
-            ans_index = mt_overlap(dist)
+            ans_ind = mt_overlap(dist)
 
         elif type_ == "D001":
             cnn1 = self.cnn0
@@ -127,16 +127,13 @@ class AI_Model():
             rnn = self.rnn1
             dist = self.compare_(cnn1, cnn2, rnn, input_1, input_2)
             ind = dist.argmin().item()
-            ans_index = self.show_eyes_xy(cnn2, input_2, ind)
+            ans_ind = self.show_eyes_xy(cnn2, input_2, ind)
         
         else:
             print("Please select correct \"type\".")
             return False
-        
-        if show_imgs:
-            self.show_img(cnn1, cnn2, input_1, input_2, ind_dic, save_path)
 
-        return ans_index
+        return ans_ind
 
     def compare_(self, cnn1, cnn2, rnn, input_1, input_2):
         input_1_list = input_tolist(input_1)
