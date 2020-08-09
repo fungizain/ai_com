@@ -171,32 +171,18 @@ class AI_Model():
 
 
 if __name__ == "__main__":
+    start = time.time()
     
     # in_1 = './dataset/images/gidle.jpeg'
     # in_1 = glob.glob('./dataset/images/miyeon/*.jpg')[3]
-    # in_1 = './dataset/images/gidle2.jpeg'
-    # in_2 = glob.glob('./dataset/images/*.jpg')[:3]
+    in_1 = './dataset/images/gidle.jpeg'
+    in_2 = glob.glob('./dataset/images/*.jpg')
 
-    import ast
-    from config import parse_question
-    
-    q = glob.glob('./question/q_*.txt')
-    q_list = []
-    for _ in q:
-        with open(_, 'r') as f:
-            data = f.read()
-        data = ast.literal_eval(data)
-        q_list.append(data)
-    
     model = AI_Model()
-    start = time.time()
-    for question in q_list:
-        question_tc = question["typeCode"]
-        content = question["content"]
-        in_1, in_2, choices = parse_question(content, question_tc)
-    
-        ans = model.compare(in_1, in_2, type_=question_tc)
-        print(ans)
+    ans = model.compare(in_1, in_2, type_="S002")
     
     time_used = round(time.time() - start, 2)
     print(f'time_used={time_used}s')
+    
+    print(in_2)
+    print(ans)

@@ -1,7 +1,6 @@
-import time
 import socketio
 
-from config import endpoint, token, make_directory, parse_question
+from config import endpoint, token, make_directory
 from model import AI_Model
 
 sio = socketio.Client()

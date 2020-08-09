@@ -2,7 +2,6 @@ import os
 import glob
 import pathlib
 import numpy as np
-import pandas as pd
 from PIL import Image, ImageDraw
 
 import torch

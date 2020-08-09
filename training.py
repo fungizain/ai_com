@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import date
 from tqdm import tqdm
+from pathlib import Path
 
 import torch
 import torch.nn as nn
@@ -13,10 +14,10 @@ from torchvision.datasets import ImageFolder
 import torchvision.transforms as tt
 from torch.utils.data import DataLoader
 
-from .facenet.models.resnet import build_resnet
+from facenet import build_resnet
 
 
-def cal_mean_std(train_ds, batch_size=10, num_workers=3):
+def cal_mean_std(train_ds, batch_size=10, num_workers=0):
     dl = DataLoader(train_ds, batch_size=batch_size, num_workers=num_workers)
     mean, std = 0., 0.
     for img, _ in dl:
@@ -61,8 +62,20 @@ def accuracy(outputs, labels):
 @torch.no_grad()
 def evaluate(model, val_loader):
     model.eval()
-    outputs = [model.validation_step(batch) for batch in val_loader]
-    return model.validation_epoch_end(outputs)
+    outputs = []
+    for batch in val_loader:
+        images, labels = batch
+        out = model(images)
+        loss = F.cross_entropy(out, labels)
+        acc = accuracy(out, labels)
+        outputs.append({'val_loss': loss.detach(), 'val_acc': acc})
+
+    batch_losses = [x['val_loss'] for x in outputs]
+    epoch_loss = torch.stack(batch_losses).mean()
+    batch_accs = [x['val_acc'] for x in outputs]
+    epoch_acc = torch.stack(batch_accs).mean()
+        
+    return {'val_loss': epoch_loss.item(), 'val_acc': epoch_acc.item()}
 
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
@@ -86,13 +99,15 @@ def fit_one_cycle(epochs, max_lr, model, train_loader, val_loader,
         pbar = tqdm(train_loader)
         pbar.set_description(f"{epoch=}, v_acc=     ")
         for batch in train_loader:
-            loss = model.training_step(batch)
+            images, labels = batch
+            out = model(images)
+            loss = F.cross_entropy(out, labels)
             train_losses.append(loss)
             loss.backward()
 
             if grad_clip:
                 nn.utils.clip_grad_value_(model.parameters(), grad_clip)
-                
+
             optimizer.step()
             optimizer.zero_grad()
             
@@ -103,7 +118,13 @@ def fit_one_cycle(epochs, max_lr, model, train_loader, val_loader,
         result = evaluate(model, val_loader)
         result['train_loss'] = torch.stack(train_losses).mean().item()
         result['lrs'] = lrs
-        train_log.append(model.epoch_end(epoch, result))
+
+        ee_ = "Epoch [{}], last_lr: {:.5f}, train_loss: {:.4f}, val_loss: {:.4f}, val_acc: {:.4f}\n"
+        train_log.append(
+            ee_.format(
+                epoch, result['lrs'][-1], result['train_loss'], result['val_loss'], result['val_acc']
+                )
+            )
         history.append(result)
         v_acc = round(100 * result['val_acc'], 2)
         pbar.set_description(f"{epoch=}, {v_acc=}")
@@ -142,12 +163,12 @@ def plot_lrs(history, dir):
 
 def grid_search(train_dl, valid_dl, epochs, opt_func, max_lrs, grad_clips, weight_decays):
     today = date.today().strftime("%d-%m-%Y")
-    model_dir = f'model/{today}'
+    model_dir = Path(f'model/{today}')
     device = DeviceDataLoader.get_default_device()
     if not os.path.exists(model_dir): os.makedirs(model_dir)
     for max_lr, grad_clip, weight_decay in list(itertools.product(max_lrs, grad_clips, weight_decays)):
         print(f'{epochs=}, {max_lr=}, {grad_clip=}, {weight_decay=}')
-        model = to_device(build_resnet('resnet18', 'fanin', 10, False), device)
+        model = to_device(build_resnet('se-resnext50-32x4d', 'classic', 2, False), device)
         history = [evaluate(model, valid_dl)]
         start = time.time()
         train_log, history_ = fit_one_cycle(epochs, max_lr, model, train_dl, valid_dl,
@@ -157,7 +178,7 @@ def grid_search(train_dl, valid_dl, epochs, opt_func, max_lrs, grad_clips, weigh
         score = round(history[-1]['val_acc'] * 100, 4)
         
         if score >= 90:
-            folder = model_dir + '/acc_{:.2f}'.format(score)
+            folder = model_dir.joinpath('acc_{:.2f}'.format(score))
             if not os.path.exists(folder): os.makedirs(folder)
             with open(folder + '/params.txt', 'w') as f:
                 f.write(f'{max_lr=}\n')
@@ -169,29 +190,40 @@ def grid_search(train_dl, valid_dl, epochs, opt_func, max_lrs, grad_clips, weigh
             plot_accuracies(history, folder)
             plot_losses(history, folder)
             plot_lrs(history, folder)
-            torch.save(model.state_dict(), folder 
-                       + '/cifar10-resnet9.pth')
+            torch.save(model.state_dict(), folder.joinpath('cifar10-resnet9.pth'))
         print(f"\n{score=}, {time_used=}s\n")
 
         del model, train_log, history_, history
         torch.cuda.empty_cache()
         
 if __name__ == "__main__":
-    batch_size = 100
-    data_dir = "./data/cifar10"
-    train_ds = ImageFolder(data_dir + '/train', tt.ToTensor())
-    valid_ds = ImageFolder(data_dir + '/test', tt.ToTensor())
+    batch_size = 250
+    data_dir = Path("./output")
+    
+    # pre_tf = tt.Compose([tt.Resize(160),
+    #                      tt.ToTensor()])
+    
+    # train_ds = ImageFolder(data_dir.joinpath('train/'), transform=pre_tf)
+    # valid_ds = ImageFolder(data_dir.joinpath('val/'), transform=pre_tf)
+    
     # stats = cal_mean_std(train_ds)
     # print(stats)
-    stats = ([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.201])
-    train_tf = tt.Compose([tt.RandomCrop(32, padding=4, padding_mode='reflect'),
-                            tt.RandomHorizontalFlip(),
-                            tt.ToTensor(),
-                            tt.Normalize(*stats, inplace=True)])
-    valid_tf = tt.Compose([tt.ToTensor(),
-                            tt.Normalize(*stats)])
-    train_dl = DataLoader(train_ds, batch_size, shuffle=True, num_workers=0, pin_memory=True)
-    valid_dl = DataLoader(valid_ds, batch_size*2, num_workers=0, pin_memory=True)
+    stats = ([0.5553, 0.4449, 0.3953], [0.2345, 0.2058, 0.1853])
+    
+    train_tf = tt.Compose([tt.Resize(160),
+                           tt.RandomCrop(32, padding=4, padding_mode='reflect'),
+                           tt.RandomHorizontalFlip(),
+                           tt.ToTensor(),
+                           tt.Normalize(*stats, inplace=True)])
+    valid_tf = tt.Compose([tt.Resize(160),
+                           tt.ToTensor(),
+                           tt.Normalize(*stats)])
+    
+    train_ds = ImageFolder(data_dir.joinpath('train/'), transform=train_tf)
+    valid_ds = ImageFolder(data_dir.joinpath('val/'), transform=valid_tf)
+    
+    train_dl = DataLoader(train_ds, batch_size, shuffle=True, num_workers=0)
+    valid_dl = DataLoader(valid_ds, batch_size*2, num_workers=0)
     train_dl = DeviceDataLoader(train_dl)
     valid_dl = DeviceDataLoader(valid_dl)
     

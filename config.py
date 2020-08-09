@@ -32,7 +32,6 @@ def saved_question_parse_(data):
     question_tc = data["typeCode"]
 
     folder = os.path.join('question/', f'{question_t}_{question_id}/')
-    make_directory(folder)
     content = data["content"]
 
     for k, v in content.items():
@@ -60,33 +59,33 @@ def string_to_image(img_str, to_nparray=False):
     img_str = b64decode(img_str)
 
     img = Image.open(io.BytesIO(img_str))
-    if to_nparray:
+    if not to_nparray:
         return np.uint8(img)
     return img
 
 def parse_question(content, question_tc):
 
     if question_tc in ("S001", "S003"):
-        in_1 = string_to_image(content["subjectImageString"])
+        in_1 = decode_to_image(content["subjectImageString"])
         in_2 = []
         choices = []
         for choice in content["choices"]:
-            in_2.append(string_to_image(choice["imageString"]))
+            in_2.append(decode_to_image(choice["imageString"]))
             choices.append(choice["id"])
     elif question_tc == "S004":
-        in_1 = string_to_image(content["subjectImageString"])
+        in_1 = decode_to_image(content["subjectImageString"])
         in_2 = []
         choices = ["A", "B"] # actor, actress
     elif question_tc in ("S002", "M001"):
-        in_1 = string_to_image(content["groupImageString"])
+        in_1 = decode_to_image(content["groupImageString"])
         in_2 = []
         choices = []
         for choice in content["choices"]:
-            in_2.append(string_to_image(choice["imageString"]))
+            in_2.append(decode_to_image(choice["imageString"]))
             choices.append(choice["id"])
     elif question_tc == "D001":
-        in_1 = string_to_image(content["subjectImageString"])
-        in_2 = string_to_image(content["groupImageString"])
+        in_1 = decode_to_image(content["subjectImageString"])
+        in_2 = decode_to_image(content["groupImageString"])
         choices = []
     else:
         print("Can't match the question type code!")
