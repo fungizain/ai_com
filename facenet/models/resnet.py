@@ -332,6 +332,14 @@ resnet_versions = {
         "widths": [128, 256, 512, 1024],
         "expansion": 2,
     },
+    "se-resnext50-32x4d": {
+        "net": ResNet,
+        "block": SEBottleneck,
+        "cardinality": 32,
+        "layers": [3, 4, 6, 3],
+        "widths": [128, 256, 512, 1024],
+        "expansion": 2,
+    },
 }
 
 
