@@ -138,7 +138,7 @@ def plot_accuracies(history, dir):
     plt.xlabel('epoch')
     plt.ylabel('accuracy')
     plt.title('Accuracy vs. No. of epochs')
-    plt.savefig(dir + '/accuracies.png')
+    plt.savefig(dir.joinpath('/accuracies.png'))
     plt.close()
 
 def plot_losses(history, dir):
@@ -150,7 +150,7 @@ def plot_losses(history, dir):
     plt.ylabel('loss')
     plt.legend(['Training', 'Validation'])
     plt.title('Loss vs. No. of epochs')
-    plt.savefig(dir + '/losses.png')
+    plt.savefig(dir.joinpath('/losses.png'))
     plt.close()
 
 def plot_lrs(history, dir):
@@ -159,7 +159,7 @@ def plot_lrs(history, dir):
     plt.xlabel('Batch no.')
     plt.ylabel('Learning rate')
     plt.title('Learning Rate vs. Batch no.')
-    plt.savefig(dir + '/learning_rates.png')
+    plt.savefig(dir.joinpath('/learning_rates.png'))
     plt.close()
 
 def grid_search(train_dl, valid_dl, epochs, opt_func, max_lrs, grad_clips, weight_decays):
@@ -229,9 +229,9 @@ if __name__ == "__main__":
     valid_dl = DeviceDataLoader(valid_dl)
     
     epochs = 20
-    max_lrs = [5e-3, 1e-2]
-    grad_clips = [1e-1, 5e-1]
-    weight_decays = [1e-3]
+    max_lrs = [1e-3, 5e-3]
+    grad_clips = [5e-1]
+    weight_decays = [1e-3, 5e-3]
     opt_func = torch.optim.Adam
     
     grid_search(train_dl, valid_dl, epochs, opt_func, max_lrs, grad_clips, weight_decays)
