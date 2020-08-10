@@ -162,7 +162,7 @@ class Bottleneck(nn.Module):
         if self.squeeze is None:
             out += residual
         else:
-            out = torch.addcmul(residual, 1.0, out, self.squeeze(out))
+            out = torch.addcmul(residual, out, self.squeeze(out))
 
         out = self.relu(out)
 
@@ -247,6 +247,19 @@ class ResNet(nn.Module):
         x = self.fc(x)
 
         return x
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                torch.nn.init.xavier_normal_(m.weight.data)
+                if m.bias is not None:
+                    m.bias.data.zero_()
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                torch.nn.init.normal_(m.weight.data, 0, 0.01)
+                m.bias.data.zero_()
 
 
 resnet_configs = {
